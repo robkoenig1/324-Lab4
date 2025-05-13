@@ -94,7 +94,7 @@ reset_buf <= reset;
 
 calculator: calc
     port map (
-        clk => sys_clk,
+        clk => clk,
         reset => reset_buf,
         instruction => instruction_reg,
         pc_out => pc_value,
@@ -169,34 +169,44 @@ display: KoenigRobert_SSD
     
     -- Detect print command (opcode 11 and rt = 11)
     is_print_command <= '1' when instruction_reg(7 downto 6) = "11" and instruction_reg(3 downto 2) = "11" else '0';
+    --printout_value <= "0000000000010000";
     
     -- Determine what to display
     --process(printout_value, is_print_command)
-    process(sys_clk, printout_value, reset_buf)
-    variable dec_val : integer range 0 to 255;
+    process(sys_clk, reset_buf)
+    variable dec_val : integer range -128 to 127;
+    variable abs_val : integer range 0 to 127;
+    variable negative : STD_LOGIC;
     begin
-        dec_val := to_integer(unsigned(printout_value(7 downto 0)));
+        dec_val := to_integer(signed(printout_value(7 downto 0)));
+        
+        if dec_val < 0 then
+            negative := '1';
+            abs_val := abs(dec_val);
+        else
+            negative := '0';
+            abs_val := dec_val;
+        end if;
+        
         if reset_buf = '1' then
             dig_10 <= "1010";--std_logic_vector(to_unsigned(dec_val / 10, 4));
             dig_1 <= "1010";--std_logic_vector(to_unsigned(dec_val mod 10, 4));
         elsif is_print_command = '1' then
-            dig_10 <= "0011";
-            dig_1 <= "0010";
+            if negative = '1' then
+                if abs_val < 10 then 
+                    dig_10 <= "1111";
+                    dig_1 <= std_logic_vector(to_unsigned(abs_val mod 10, 4));
+                else 
+                    dig_10 <= std_logic_vector(to_unsigned(abs_val / 10, 4));
+                    dig_1 <= std_logic_vector(to_unsigned(abs_val mod 10, 4));
+                end if;
+            else 
+                dig_10 <= std_logic_vector(to_unsigned(abs_val / 10, 4));
+                dig_1 <= std_logic_vector(to_unsigned(abs_val mod 10, 4));
+            end if;
         else
-            dig_10 <= "1000";
-            dig_1 <= "1000";
-        --if rising_edge(clk1) then
-        --    display_value <= std_logic_vector(to_unsigned(dec_val mod 10, 4));
-        --else 
-        --    display_value <= std_logic_vector(to_unsigned(dec_val / 10, 4));
-        --end if;
-        ----------------------------------------------------------------------------------
-        --if is_print_command = '1' then
-            -- For print command, show the lower 8 bits of the register contents
-        --    display_value <= printout_value(7 downto 0);
-        --else
-            -- For other operations, show operation result if needed
-        --    display_value <= printout_value(7 downto 0);
+            dig_10 <= "1010";
+            dig_1 <= "1010";
         end if;
     end process;
     
