@@ -35,6 +35,8 @@ with seg_in select seg <=
     "0000111" when "0111",
     "1111111" when "1000",
     "1101111" when "1001",
+    "1000000" when "1111",
+    "0000000" when others;
     --"1111110" when "0000",
     --"0110000" when "0001",
     --"1101101" when "0010",
@@ -50,8 +52,5 @@ with seg_in select seg <=
     --"1001110" when "1100",
     --"0111101" when "1101",
     --"1001111" when "1110",
-    --"1000111" when "1111",
-    "0000000" when others;
 
 end Behavioral;
-
