@@ -8,7 +8,8 @@ port(
     reset:        in std_logic;
     instruction:  in std_logic_vector(7 downto 0);
     pc_out:       out std_logic_vector(3 downto 0);
-    printout:     out std_logic_vector(15 downto 0)
+    printout:     out std_logic_vector(15 downto 0);
+    skip:         out std_logic
 );
 end calc;
 
@@ -59,10 +60,10 @@ architecture rtl of calc is
     signal equ : std_logic;
     signal print_en : std_logic;
     signal ext_en : std_logic;
-
+    
     --pc signals
     signal pc_reset: std_logic;
-    signal pc_skip: std_logic;
+    signal pc_skip: std_logic := '0';
     signal pc_value: std_logic_vector(3 downto 0);
     signal skip_next: std_logic;
     signal pc_enable: std_logic;
@@ -70,6 +71,7 @@ architecture rtl of calc is
     signal next_state : std_logic_vector(1 downto 0);
 
     --reg file and signals
+    signal reg_reset : std_logic;
     signal reg0_in : std_logic_vector(15 downto 0);
     signal reg1_in : std_logic_vector(15 downto 0);
     signal reg2_in : std_logic_vector(15 downto 0);
@@ -90,6 +92,8 @@ architecture rtl of calc is
     signal rf_rd_data1 : std_logic_vector(15 downto 0);
     signal rf_rd_data2 : std_logic_vector(15 downto 0);
     signal printout_reg : std_logic_vector(15 downto 0);
+    signal rf_rd_data1_reg : std_logic_vector(15 downto 0);
+    signal rf_rd_data2_reg : std_logic_vector(15 downto 0);
 
     --alu signals
     signal alu_in_a : std_logic_vector(15 downto 0);
@@ -97,8 +101,12 @@ architecture rtl of calc is
     signal alu_result : std_logic_vector(15 downto 0);
     signal alu_equal : std_logic;
 
+    signal load_val : std_logic_vector(15 downto 0);
 
 begin
+    
+    pc_reset <= reset;
+    reg_reset <= reset;
     
     --counter instance for pc
     pc_counter: counter
@@ -110,8 +118,6 @@ begin
     );
 
     pc_out <= pc_value;
-    pc_reset <= reset;
-    pc_skip <= '0'; --no initial skip
 
     --current program state control
     process(clk, reset)
@@ -180,11 +186,11 @@ begin
                 print_en <= '0';
             when "01" => --sawp
                 reg_wr <= '1';
-                reg_dst <= '0';
+                reg_dst <= '1';
                 alu_op <= "01";
                 alu_src <= '0';
                 equ <= alu_equal;
-                print_en <= '0';
+                print_en <= '1';
             when "10" => --load
                 reg_wr <= '1';
                 reg_dst <= '1';
@@ -225,7 +231,7 @@ begin
     port map (
         I => reg0_in,
         clk => clk,
-        reset => reset,
+        reset => reg_reset,
         en => reg0_en,
         O => reg0_out
     );
@@ -235,7 +241,7 @@ begin
     port map (
         I => reg1_in,
         clk => clk,
-        reset => reset,
+        reset => reg_reset,
         en => reg1_en,
         O => reg1_out
     );
@@ -245,7 +251,7 @@ begin
     port map (
         I => reg2_in,
         clk => clk,
-        reset => reset,
+        reset => reg_reset,
         en => reg2_en,
         O => reg2_out
     );
@@ -255,7 +261,7 @@ begin
     port map (
         I => reg3_in,
         clk => clk,
-        reset => reset,
+        reset => reg_reset,
         en => reg3_en,
         O => reg3_out
     );
@@ -294,28 +300,27 @@ begin
         equal => alu_equal
     );
 
-    --alu input connections
-    alu_in_a <= rf_rd_data1;
-    alu_in_b <= sign_ext_imm when alu_src = '1' else rf_rd_data2;
+    --load value so first half of register isn't sign-extended over
+    load_val <= rf_rd_data1(15 downto 8) & sign_ext_imm(7 downto 0);
 
-    --register write back
+    alu_in_a <= rf_rd_data1;
+    alu_in_b <= load_val when alu_src = '1' else rf_rd_data2;
+
     reg0_in <= alu_result;
     reg1_in <= alu_result;
     reg2_in <= alu_result;
     reg3_in <= alu_result;
 
     --print output for testbench
-    process(clk)
+    process(rf_rd_data1)
     begin
-        if rising_edge(clk) then
-            --if print_en = '1' then
-            --    printout <= rf_rd_data1;
-            if alu_op = "00" then
-                printout <= (0 => alu_equal, others => '0');
-            else
-                printout <= alu_result;
-            end if;
+        if print_en = '1' then
+            printout <= rf_rd_data1;
+        else
+            printout <= (others => '0');
         end if;
     end process;
+    
+    skip <= alu_equal;
     
 end rtl;
