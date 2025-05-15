@@ -17,13 +17,16 @@ end reg;
 
 architecture behavioral of reg is
     signal reg_content: std_logic_vector(WIDTH-1 downto 0) := (others => '0'); -- initialize register content to zeros
+    signal reg_reset: std_logic;
 begin
 
     process(clk)
     begin
-
+    
+    reg_reset <= reset;
+    
 	if rising_edge(clk) then -- rising-edge triggering
-        if reset = '1' then
+        if reg_reset = '1' then
             reg_content <= (others => '0');
 	    elsif en = '1' then -- check if register is enabled
             reg_content <= I; -- load input into register
