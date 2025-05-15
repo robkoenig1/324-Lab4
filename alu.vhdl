@@ -19,15 +19,9 @@ architecture rtl of alu is
     signal add_result : std_logic_vector(15 downto 0);
     signal carry : std_logic_vector(15 downto 0);
     signal compare_result : std_logic;
+    --signal load_val : std_logic_vector(7 downto 0);
     
 begin
-
-    A_lower <= A(7 downto 0);
-    B_lower <= B(7 downto 0);
-
-    swapped_A <= A(7 downto 0) & A(15 downto 8); --swap A upper and lower halves
-    
-    compare_result <= '1' when (A_lower = B_lower) else '0'; --compare A and B
     
     carry(0) <= '0'; --no initial carry
     add_gen: for i in 0 to 15 generate --add operation using ripple carry adder
@@ -37,8 +31,19 @@ begin
         end generate;
     end generate;
     
-    process(op, A, B, add_result, swapped_A, compare_result)
+    process(op, A, B, add_result)
     begin
+        A_lower <= A(7 downto 0);
+        B_lower <= B(7 downto 0);
+
+        swapped_A <= A(7 downto 0) & A(15 downto 8); --swap A upper and lower halves
+    
+        if A = B then
+            compare_result <= '1';
+        else
+            compare_result <= '0';
+        end if;    
+        
         case op is
             when "00" => --compare
                 result <= (others => '0');
